@@ -16,9 +16,9 @@ import (
 var _ command.PlaceOrderHandler = (*OrderService[any])(nil)
 
 type OrderService[T any] struct {
-	txManager      data.TxManager[T]
-	orderRepostory repository.OrderRepository
-	publisher      messaging.EventPublisher[event.Event]
+	txManager       data.TxManager[T]
+	orderRepository repository.OrderRepository
+	publisher       messaging.EventPublisher[event.Event]
 }
 
 func NewOrderService[T any](
@@ -27,13 +27,14 @@ func NewOrderService[T any](
 	publisher messaging.EventPublisher[event.Event],
 ) *OrderService[T] {
 	return &OrderService[T]{
-		txManager:      txManager,
-		orderRepostory: orderRepository,
-		publisher:      publisher,
+		txManager:       txManager,
+		orderRepository: orderRepository,
+		publisher:       publisher,
 	}
 }
 
-// PlaceOrder implements command.PlaceOrderHandler.
+// PlaceOrder creates a new order and publishes an OrderPlaced event.
+// It uses the outbox pattern to ensure that the event is published if and only if the order is saved.
 func (o *OrderService[T]) PlaceOrder(ctx context.Context, cmd *command.PlaceOrder) (*command.PlacedOrder, error) {
 	txCtx, err := o.txManager.Begin(ctx)
 	if err != nil {
@@ -48,7 +49,7 @@ func (o *OrderService[T]) PlaceOrder(ctx context.Context, cmd *command.PlaceOrde
 		EstimatedPrice: cmd.EstimatedPrice,
 		PlacedAt:       time.Now(),
 	}
-	if err := o.orderRepostory.Save(txCtx, order); err != nil {
+	if err := o.orderRepository.Save(txCtx, order); err != nil {
 		return nil, err
 	}
 

@@ -1,0 +1,17 @@
+@startuml component_diagram
+title "Outbox CDC Component Diagram"
+left to right direction
+actor "User" as user
+rectangle "API" as api
+rectangle "Order Service" as service
+rectangle "Database" as db
+rectangle "Debezium" as debezium
+rectangle "Kafka" as kafka
+rectangle "Kafka Consumer" as consumer
+user -- api
+api -- service
+service -- db
+db -- debezium
+debezium -- kafka
+kafka -- consumer
+@enduml

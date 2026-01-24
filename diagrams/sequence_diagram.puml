@@ -1,0 +1,19 @@
+@startuml sequence_diagram
+title "Order Placement Sequence Diagram"
+actor User
+participant "API" as api
+participant "Order Service" as service
+participant "Database" as db
+participant "Debezium" as debezium
+participant "Kafka" as kafka
+participant "Kafka Consumer" as consumer
+User -> api: POST /orders
+api -> service: PlaceOrder(cmd)
+service -> db: BEGIN
+service -> db: INSERT into orders
+service -> db: INSERT into outbox
+service -> db: COMMIT
+db -> debezium: Change Event (outbox)
+debezium -> kafka: Publish Message
+kafka -> consumer: Consume Message
+@enduml
