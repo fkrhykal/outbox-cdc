@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"os"
@@ -11,31 +10,13 @@ import (
 	"time"
 
 	"github.com/fkrhykal/outbox-cdc/api"
-	"github.com/fkrhykal/outbox-cdc/data"
-	"github.com/fkrhykal/outbox-cdc/db"
-	"github.com/fkrhykal/outbox-cdc/internal/outbox"
-	"github.com/fkrhykal/outbox-cdc/internal/service"
+	"github.com/fkrhykal/outbox-cdc/bootstrap"
+
 	_ "github.com/lib/pq"
 )
 
 func main() {
-
-	pg, err := sql.Open("postgres", "user=pguser password=pgpw dbname=pgdb port=5432 host=localhost sslmode=disable")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	orderRepository := db.NewPgOrderRepository(pg)
-	outboxRepository := db.NewPgOutboxRepository(pg)
-
-	txManager := data.NewSqlTxManager(pg)
-	publisher := outbox.NewOutboxEventPublisher(outboxRepository)
-
-	orderService := service.NewOrderService(
-		txManager,
-		orderRepository,
-		publisher,
-	)
+	orderService := bootstrap.BootstrapOrderService()
 
 	mux := http.NewServeMux()
 
@@ -67,5 +48,4 @@ func main() {
 	}
 
 	log.Println("server gracefully stopped")
-
 }

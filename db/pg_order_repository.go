@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/fkrhykal/outbox-cdc/internal/entity"
-	"github.com/fkrhykal/outbox-cdc/internal/repository"
+	"github.com/fkrhykal/outbox-cdc/internal/order/entity"
+	"github.com/fkrhykal/outbox-cdc/internal/order/repository"
 )
 
 var _ repository.OrderRepository = (*PgOrderRepository)(nil)

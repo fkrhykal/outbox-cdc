@@ -1,4 +1,4 @@
-package event
+package messaging
 
 type Event interface {
 	EventID() string

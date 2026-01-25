@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/fkrhykal/outbox-cdc/internal/command"
+	command "github.com/fkrhykal/outbox-cdc/internal/order/comand"
 )
 
 func PlaceOrderHandler(h command.PlaceOrderHandler) http.Handler {

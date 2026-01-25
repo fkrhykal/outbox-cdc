@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/fkrhykal/outbox-cdc/data"
-	"github.com/fkrhykal/outbox-cdc/internal/command"
-	"github.com/fkrhykal/outbox-cdc/internal/entity"
-	"github.com/fkrhykal/outbox-cdc/internal/event"
 	"github.com/fkrhykal/outbox-cdc/internal/messaging"
-	"github.com/fkrhykal/outbox-cdc/internal/repository"
+	command "github.com/fkrhykal/outbox-cdc/internal/order/comand"
+	"github.com/fkrhykal/outbox-cdc/internal/order/entity"
+	"github.com/fkrhykal/outbox-cdc/internal/order/event"
+	"github.com/fkrhykal/outbox-cdc/internal/order/repository"
+
 	"github.com/google/uuid"
 )
 
@@ -18,13 +19,13 @@ var _ command.PlaceOrderHandler = (*OrderService[any])(nil)
 type OrderService[T any] struct {
 	txManager       data.TxManager[T]
 	orderRepository repository.OrderRepository
-	publisher       messaging.EventPublisher[event.Event]
+	publisher       messaging.EventPublisher[messaging.Event]
 }
 
 func NewOrderService[T any](
 	txManager data.TxManager[T],
 	orderRepository repository.OrderRepository,
-	publisher messaging.EventPublisher[event.Event],
+	publisher messaging.EventPublisher[messaging.Event],
 ) *OrderService[T] {
 	return &OrderService[T]{
 		txManager:       txManager,

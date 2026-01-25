@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/fkrhykal/outbox-cdc/internal/entity"
+	"github.com/fkrhykal/outbox-cdc/internal/order/entity"
 )
 
 type OrderRepository interface {
