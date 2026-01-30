@@ -30,7 +30,7 @@ func (p *PgOrderRepository) Save(ctx context.Context, order *entity.Order) error
 		VALUES($1, $2, $3, $4, $5)
 	`
 	_, err := p.Executor(ctx).
-		ExecContext(ctx, query, order.ID, order.ItemID, order.Quantity, order.EstimatedPrice, order.PlacedAt)
+		ExecContext(ctx, query, order.ID, order.ProductID, order.Quantity, order.EstimatedPrice, order.PlacedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert order record: %w", err)
 	}

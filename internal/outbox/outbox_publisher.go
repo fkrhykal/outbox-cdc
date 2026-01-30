@@ -3,6 +3,7 @@ package outbox
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/fkrhykal/outbox-cdc/internal/messaging"
 )
@@ -10,10 +11,10 @@ import (
 var _ messaging.EventPublisher[messaging.Event] = (*OutboxEventPublisher)(nil)
 
 type OutboxEventPublisher struct {
-	outboxPersistence OutboxPersistence
+	outboxPersistence OutboxRepository
 }
 
-func NewOutboxEventPublisher(outboxPersistence OutboxPersistence) *OutboxEventPublisher {
+func NewOutboxEventPublisher(outboxPersistence OutboxRepository) *OutboxEventPublisher {
 	return &OutboxEventPublisher{outboxPersistence: outboxPersistence}
 }
 
@@ -21,7 +22,7 @@ func NewOutboxEventPublisher(outboxPersistence OutboxPersistence) *OutboxEventPu
 func (o *OutboxEventPublisher) Publish(ctx context.Context, event messaging.Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed marshal event %s: %w", event.EventType(), err)
 	}
 	outbox := &Outbox{
 		EventID:       event.EventID(),

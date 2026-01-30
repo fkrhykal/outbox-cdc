@@ -6,13 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
-type PlaceItemReservation struct {
+type PlaceReservation struct {
 	ReservationKey uuid.UUID
 	ProductID      uuid.UUID
 	Quantity       int
 	EstimatedPrice int
 }
 
-type PlaceItemReservationHandler interface {
-	PlaceItemReservation(ctx context.Context, command *PlaceItemReservation) error
+type PlaceReservationHandler interface {
+	PlaceReservation(ctx context.Context, command *PlaceReservation) error
 }

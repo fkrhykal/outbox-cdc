@@ -7,7 +7,7 @@ import (
 )
 
 type PlaceOrder struct {
-	ItemID         int
+	ProductID      uuid.UUID
 	EstimatedPrice int
 	Quantity       int
 }

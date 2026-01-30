@@ -6,23 +6,37 @@ import (
 
 	"github.com/fkrhykal/outbox-cdc/data"
 	"github.com/fkrhykal/outbox-cdc/internal/inventory/command"
-	"github.com/fkrhykal/outbox-cdc/internal/inventory/entity"
 	"github.com/fkrhykal/outbox-cdc/internal/inventory/event"
 	"github.com/fkrhykal/outbox-cdc/internal/inventory/repository"
-	"github.com/fkrhykal/outbox-cdc/internal/messaging"
+	"github.com/fkrhykal/outbox-cdc/internal/outbox"
+	"github.com/google/uuid"
 )
 
-var _ command.PlaceItemReservationHandler = (*ReservationService[any])(nil)
+var _ command.PlaceReservationHandler = (*ReservationService[any])(nil)
 
 type ReservationService[T any] struct {
-	txManager                 data.TxManager[T]
-	productRepository         repository.ProductRepository
-	itemReservationRepository repository.ItemReservationRepository
-	publisher                 messaging.EventPublisher[messaging.Event]
+	txManager             data.TxManager[T]
+	productRepository     repository.ProductRepository
+	reservationRepository repository.ReservationRepository
+	outboxRepository      outbox.OutboxRepository
 }
 
-// PlaceItemReservation implements [command.PlaceItemReservationHandler].
-func (rs *ReservationService[T]) PlaceItemReservation(ctx context.Context, cmd *command.PlaceItemReservation) error {
+func NewReservationService[T any](
+	txManager data.TxManager[T],
+	productRepository repository.ProductRepository,
+	reservationRepository repository.ReservationRepository,
+	outboxRepository outbox.OutboxRepository,
+) *ReservationService[T] {
+	return &ReservationService[T]{
+		txManager:             txManager,
+		productRepository:     productRepository,
+		reservationRepository: reservationRepository,
+		outboxRepository:      outboxRepository,
+	}
+}
+
+// PlaceProductReservation implements [command.PlaceReservationHandler].
+func (rs *ReservationService[T]) PlaceReservation(ctx context.Context, cmd *command.PlaceReservation) error {
 	txCtx, err := rs.txManager.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -33,38 +47,50 @@ func (rs *ReservationService[T]) PlaceItemReservation(ctx context.Context, cmd *
 	if err != nil {
 		return fmt.Errorf("failed to retrieve product with id %s: %w", cmd.ProductID, err)
 	}
+
 	if product == nil {
-		return fmt.Errorf("product with id %s doesn't exist: %w", cmd.ProductID, err)
+		productNotFound := &event.ProductNotFound{
+			ID:             uuid.New(),
+			ReservationKey: cmd.ReservationKey,
+			ProductID:      cmd.ProductID,
+		}
+		if err := rs.outboxRepository.SaveEvent(txCtx, productNotFound); err != nil {
+			return err
+		}
+		return productNotFound
 	}
 
-	if product.Price < cmd.EstimatedPrice {
-		return fmt.Errorf("")
-	}
-	if product.Stock < cmd.Quantity {
-		return fmt.Errorf("")
+	reservation, reservationFailed := product.Reserve(cmd.ReservationKey, cmd.EstimatedPrice, cmd.Quantity)
+	if reservationFailed != nil {
+		if err := rs.outboxRepository.SaveEvent(txCtx, reservationFailed); err != nil {
+			return fmt.Errorf("failed to save failure event: %w", err)
+		}
+		return reservationFailed
 	}
 
-	product.Stock -= cmd.Quantity
-	if err := rs.productRepository.UpdateStock(txCtx, product.ID, product.Stock); err != nil {
+	if err := rs.productRepository.UpdateStock(txCtx, product); err != nil {
 		return fmt.Errorf("failed to update product stock: %w", err)
 	}
 
-	itemReservation := &entity.ItemReservation{
-		ID:        cmd.ReservationKey,
-		ProductID: product.ID,
-		Quantity:  cmd.Quantity,
-	}
-	if err := rs.itemReservationRepository.Save(txCtx, itemReservation); err != nil {
+	if err := rs.reservationRepository.Save(txCtx, reservation); err != nil {
 		return fmt.Errorf("failed to save item reservation: %w", err)
 	}
 
-	itemReserved := event.ItemReserved{}
-	if err := rs.publisher.Publish(txCtx, &itemReserved); err != nil {
-		return fmt.Errorf("failed to published item reserved event: %w", err)
+	reservationPlaced := &event.ReservationPlaced{
+		ID:            uuid.New(),
+		ProductID:     reservation.ProductID,
+		ReservationID: reservation.ID,
+		PriceLevel:    reservation.PriceLevel,
+		Quantity:      reservation.Quantity,
+	}
+
+	if err := rs.outboxRepository.SaveEvent(txCtx, reservationPlaced); err != nil {
+		return fmt.Errorf("failed to save reservation placed event: %w", err)
 	}
 
 	if err := txCtx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
 	return nil
 }

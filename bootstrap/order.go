@@ -3,14 +3,15 @@ package bootstrap
 import (
 	"database/sql"
 	"log"
+	"net/http"
 
+	"github.com/fkrhykal/outbox-cdc/api"
 	"github.com/fkrhykal/outbox-cdc/data"
 	"github.com/fkrhykal/outbox-cdc/db"
 	"github.com/fkrhykal/outbox-cdc/internal/order/service"
-	"github.com/fkrhykal/outbox-cdc/internal/outbox"
 )
 
-func BootstrapOrderService() *service.OrderService[data.SqlExecutor] {
+func OrderService(mux *http.ServeMux) {
 	pg, err := sql.Open("postgres", "user=pguser password=pgpw dbname=pgdb port=5432 host=localhost sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
@@ -19,12 +20,12 @@ func BootstrapOrderService() *service.OrderService[data.SqlExecutor] {
 	outboxRepository := db.NewPgOutboxRepository(pg)
 
 	txManager := data.NewSqlTxManager(pg)
-	publisher := outbox.NewOutboxEventPublisher(outboxRepository)
 
 	orderService := service.NewOrderService(
 		txManager,
 		orderRepository,
-		publisher,
+		outboxRepository,
 	)
-	return orderService
+
+	mux.Handle("POST /orders", api.PlaceOrderHandler(orderService))
 }
