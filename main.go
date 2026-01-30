@@ -9,18 +9,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fkrhykal/outbox-cdc/api"
 	"github.com/fkrhykal/outbox-cdc/bootstrap"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	orderService := bootstrap.BootstrapOrderService()
-
 	mux := http.NewServeMux()
 
-	mux.Handle("POST /orders", api.PlaceOrderHandler(orderService))
+	bootstrap.OrderService(mux)
 
 	server := &http.Server{
 		Addr:    ":9000",

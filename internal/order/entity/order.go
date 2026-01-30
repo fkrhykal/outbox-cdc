@@ -8,7 +8,7 @@ import (
 
 type Order struct {
 	ID             uuid.UUID
-	ItemID         int
+	ProductID      uuid.UUID
 	Quantity       int
 	EstimatedPrice int
 	PlacedAt       time.Time

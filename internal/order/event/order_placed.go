@@ -13,7 +13,7 @@ var _ messaging.Event = (*OrderPlaced)(nil)
 type OrderPlaced struct {
 	ID             uuid.UUID `json:"event_id"`
 	OrderID        uuid.UUID `json:"order_id"`
-	ItemID         int       `json:"item_id"`
+	ProductID      uuid.UUID `json:"item_id"`
 	Quantity       int       `json:"quantity"`
 	EstimatedPrice int       `json:"estimated_price"`
 	PlacedAt       time.Time `json:"placed_at"`
@@ -23,7 +23,7 @@ func NewOrderPlaced(o *entity.Order) *OrderPlaced {
 	return &OrderPlaced{
 		ID:             uuid.New(),
 		OrderID:        o.ID,
-		ItemID:         o.ItemID,
+		ProductID:      o.ProductID,
 		Quantity:       o.Quantity,
 		EstimatedPrice: o.EstimatedPrice,
 		PlacedAt:       o.PlacedAt,

@@ -6,3 +6,8 @@ type Event interface {
 	AggregateType() string
 	EventType() string
 }
+
+type FailureEvent interface {
+	Event
+	error
+}

@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fkrhykal/outbox-cdc/data"
-	"github.com/fkrhykal/outbox-cdc/internal/messaging"
 	command "github.com/fkrhykal/outbox-cdc/internal/order/comand"
 	"github.com/fkrhykal/outbox-cdc/internal/order/entity"
 	"github.com/fkrhykal/outbox-cdc/internal/order/event"
 	"github.com/fkrhykal/outbox-cdc/internal/order/repository"
+	"github.com/fkrhykal/outbox-cdc/internal/outbox"
 
 	"github.com/google/uuid"
 )
@@ -17,20 +18,20 @@ import (
 var _ command.PlaceOrderHandler = (*OrderService[any])(nil)
 
 type OrderService[T any] struct {
-	txManager       data.TxManager[T]
-	orderRepository repository.OrderRepository
-	publisher       messaging.EventPublisher[messaging.Event]
+	txManager         data.TxManager[T]
+	orderRepository   repository.OrderRepository
+	outboxPersistence outbox.OutboxRepository
 }
 
 func NewOrderService[T any](
 	txManager data.TxManager[T],
 	orderRepository repository.OrderRepository,
-	publisher messaging.EventPublisher[messaging.Event],
+	outboxRepository outbox.OutboxRepository,
 ) *OrderService[T] {
 	return &OrderService[T]{
-		txManager:       txManager,
-		orderRepository: orderRepository,
-		publisher:       publisher,
+		txManager:         txManager,
+		orderRepository:   orderRepository,
+		outboxPersistence: outboxRepository,
 	}
 }
 
@@ -39,28 +40,33 @@ func NewOrderService[T any](
 func (o *OrderService[T]) PlaceOrder(ctx context.Context, cmd *command.PlaceOrder) (*command.PlacedOrder, error) {
 	txCtx, err := o.txManager.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer txCtx.Rollback()
 
 	order := &entity.Order{
 		ID:             uuid.New(),
-		ItemID:         cmd.ItemID,
+		ProductID:      cmd.ProductID,
 		Quantity:       cmd.Quantity,
 		EstimatedPrice: cmd.EstimatedPrice,
 		PlacedAt:       time.Now(),
 	}
 	if err := o.orderRepository.Save(txCtx, order); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to save order: %w", err)
 	}
 
-	placedOrder := event.NewOrderPlaced(order)
-	if err := o.publisher.Publish(txCtx, placedOrder); err != nil {
-		return nil, err
+	orderPlaced := event.NewOrderPlaced(order)
+	outboxRecord, err := outbox.Event(orderPlaced)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map event to outbox: %w", err)
+	}
+
+	if err := o.outboxPersistence.Save(txCtx, outboxRecord); err != nil {
+		return nil, fmt.Errorf("failed to save place order event: %w", err)
 	}
 
 	if err := txCtx.Commit(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return &command.PlacedOrder{ID: order.ID}, nil

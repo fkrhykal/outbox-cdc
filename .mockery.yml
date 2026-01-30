@@ -1,0 +1,41 @@
+all: false
+dir: '{{.InterfaceDir}}'
+force-file-write: true
+formatter: goimports
+include-auto-generated: false
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}'
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: '{{.Template}}.schema.json'
+packages:
+  github.com/fkrhykal/outbox-cdc/internal/outbox:
+    interfaces:
+      OutboxRepository:
+        config:
+          filename: "outbox_repository_mock.go"
+  github.com/fkrhykal/outbox-cdc/internal/order/repository:
+    interfaces:
+      OrderRepository:
+        config:
+          filename: "order_repository_mock.go"
+  github.com/fkrhykal/outbox-cdc/internal/inventory/repository:
+    interfaces:
+      ProductRepository:
+        config:
+          filename: "product_repository_mock.go"
+      ReservationRepository:
+        config:
+          filename: "reservation_repository_mock.go"
+  github.com/fkrhykal/outbox-cdc/data:
+    interfaces:
+      TxManager:
+        config:
+          filename: "tx_manager_mock.go"
+      TxContext:
+        config:
+          filename: "tx_context_mock.go"
+        
+        
