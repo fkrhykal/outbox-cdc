@@ -7,13 +7,13 @@ import (
 )
 
 type PlaceOrder struct {
-	ProductID      uuid.UUID
-	EstimatedPrice int
-	Quantity       int
+	ProductID      uuid.UUID `json:"product_id"`
+	EstimatedPrice int       `json:"estimated_price"`
+	Quantity       int       `json:"quantity"`
 }
 
 type PlacedOrder struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 type PlaceOrderHandler interface {

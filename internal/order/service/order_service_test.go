@@ -9,7 +9,9 @@ import (
 	command "github.com/fkrhykal/outbox-cdc/internal/order/comand"
 	"github.com/fkrhykal/outbox-cdc/internal/order/repository"
 	"github.com/fkrhykal/outbox-cdc/internal/order/service"
+	orderValidation "github.com/fkrhykal/outbox-cdc/internal/order/validation"
 	"github.com/fkrhykal/outbox-cdc/internal/outbox"
+	"github.com/fkrhykal/outbox-cdc/internal/validation"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -20,7 +22,10 @@ func TestOrderService_PlaceOrder_Success(t *testing.T) {
 	txManager := data.NewMockTxManager[any](t)
 	orderRepository := repository.NewMockOrderRepository(t)
 	outboxRepository := outbox.NewMockOutboxRepository(t)
-	orderService := service.NewOrderService(txManager, orderRepository, outboxRepository)
+	validator := validation.NewValidatorRegistry()
+	validator.Register(validation.Coerce(orderValidation.ValidatePlaceOrderCommand()))
+
+	orderService := service.NewOrderService(validator, txManager, orderRepository, outboxRepository)
 
 	testCtx := context.Background()
 	txCtx := data.NewMockTxContext[any](t)
@@ -59,7 +64,10 @@ func TestOrderService_PlaceOrder_TransactionBeginFailure(t *testing.T) {
 	txManager := data.NewMockTxManager[any](t)
 	orderRepository := repository.NewMockOrderRepository(t)
 	outboxRepository := outbox.NewMockOutboxRepository(t)
-	orderService := service.NewOrderService(txManager, orderRepository, outboxRepository)
+	validator := validation.NewValidatorRegistry()
+	validator.Register(validation.Coerce(orderValidation.ValidatePlaceOrderCommand()))
+
+	orderService := service.NewOrderService(validator, txManager, orderRepository, outboxRepository)
 
 	testCtx := context.Background()
 	cmd := &command.PlaceOrder{
@@ -90,7 +98,10 @@ func TestOrderService_PlaceOrder_OrderSaveFailure(t *testing.T) {
 	txManager := data.NewMockTxManager[any](t)
 	orderRepository := repository.NewMockOrderRepository(t)
 	outboxRepository := outbox.NewMockOutboxRepository(t)
-	orderService := service.NewOrderService(txManager, orderRepository, outboxRepository)
+	validator := validation.NewValidatorRegistry()
+	validator.Register(validation.Coerce(orderValidation.ValidatePlaceOrderCommand()))
+
+	orderService := service.NewOrderService(validator, txManager, orderRepository, outboxRepository)
 
 	testCtx := context.Background()
 	txCtx := data.NewMockTxContext[any](t)
@@ -125,7 +136,10 @@ func TestOrderService_PlaceOrder_EventMappingFailure(t *testing.T) {
 	txManager := data.NewMockTxManager[any](t)
 	orderRepository := repository.NewMockOrderRepository(t)
 	outboxRepository := outbox.NewMockOutboxRepository(t)
-	orderService := service.NewOrderService(txManager, orderRepository, outboxRepository)
+	validator := validation.NewValidatorRegistry()
+	validator.Register(validation.Coerce(orderValidation.ValidatePlaceOrderCommand()))
+
+	orderService := service.NewOrderService(validator, txManager, orderRepository, outboxRepository)
 
 	testCtx := context.Background()
 	txCtx := data.NewMockTxContext[any](t)
@@ -161,7 +175,10 @@ func TestOrderService_PlaceOrder_TransactionCommitFailure(t *testing.T) {
 	txManager := data.NewMockTxManager[any](t)
 	orderRepository := repository.NewMockOrderRepository(t)
 	outboxRepository := outbox.NewMockOutboxRepository(t)
-	orderService := service.NewOrderService(txManager, orderRepository, outboxRepository)
+	validator := validation.NewValidatorRegistry()
+	validator.Register(validation.Coerce(orderValidation.ValidatePlaceOrderCommand()))
+
+	orderService := service.NewOrderService(validator, txManager, orderRepository, outboxRepository)
 
 	testCtx := context.Background()
 	txCtx := data.NewMockTxContext[any](t)

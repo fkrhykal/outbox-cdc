@@ -11,6 +11,7 @@ import (
 	"github.com/fkrhykal/outbox-cdc/internal/order/event"
 	"github.com/fkrhykal/outbox-cdc/internal/order/repository"
 	"github.com/fkrhykal/outbox-cdc/internal/outbox"
+	"github.com/fkrhykal/outbox-cdc/internal/validation"
 
 	"github.com/google/uuid"
 )
@@ -18,17 +19,20 @@ import (
 var _ command.PlaceOrderHandler = (*OrderService[any])(nil)
 
 type OrderService[T any] struct {
+	validator         validation.Validator
 	txManager         data.TxManager[T]
 	orderRepository   repository.OrderRepository
 	outboxPersistence outbox.OutboxRepository
 }
 
 func NewOrderService[T any](
+	validator validation.Validator,
 	txManager data.TxManager[T],
 	orderRepository repository.OrderRepository,
 	outboxRepository outbox.OutboxRepository,
 ) *OrderService[T] {
 	return &OrderService[T]{
+		validator:         validator,
 		txManager:         txManager,
 		orderRepository:   orderRepository,
 		outboxPersistence: outboxRepository,
@@ -38,6 +42,9 @@ func NewOrderService[T any](
 // PlaceOrder creates a new order and publishes an OrderPlaced event.
 // It uses the outbox pattern to ensure that the event is published if and only if the order is saved.
 func (o *OrderService[T]) PlaceOrder(ctx context.Context, cmd *command.PlaceOrder) (*command.PlacedOrder, error) {
+	if err := o.validator.Validate(ctx, cmd); err != nil {
+		return nil, err
+	}
 	txCtx, err := o.txManager.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %w", err)

@@ -102,7 +102,7 @@ func TestMismatchedPrice_Error(t *testing.T) {
 	assert.Equal(t, expected, err.Error())
 }
 
-func TestOutOfStock_Error(t *testing.T) {
+func TestInsuficientStock_Error(t *testing.T) {
 	err := &event.InsuficientStock{
 		ID:                uuid.New(),
 		ReservationKey:    uuid.New(),
@@ -111,7 +111,7 @@ func TestOutOfStock_Error(t *testing.T) {
 		RequestedQuantity: 5,
 	}
 
-	expected := "out of stock: requested 5 but only 2 available"
+	expected := "insuficient stock: requested 5 but only 2 available"
 	assert.Equal(t, expected, err.Error())
 }
 
@@ -134,7 +134,7 @@ func TestMismatchedPrice_EventImplementation(t *testing.T) {
 	assert.Equal(t, "mismatched_price", event.EventType())
 }
 
-func TestOutOfStock_EventImplementation(t *testing.T) {
+func TestInsuficientStock_EventImplementation(t *testing.T) {
 	productID := uuid.New()
 	eventID := uuid.New()
 	reservationKey := uuid.New()
@@ -150,5 +150,5 @@ func TestOutOfStock_EventImplementation(t *testing.T) {
 	assert.Equal(t, productID.String(), event.AggregateID())
 	assert.Equal(t, "product", event.AggregateType())
 	assert.Equal(t, eventID.String(), event.EventID())
-	assert.Equal(t, "out_of_stock", event.EventType())
+	assert.Equal(t, "insuficient_stock", event.EventType())
 }
