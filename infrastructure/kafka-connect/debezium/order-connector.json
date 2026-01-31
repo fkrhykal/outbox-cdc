@@ -1,18 +1,18 @@
 {
-  "name": "postgres-outbox",
+  "name": "order-outbox",
   "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
   "tasks.max": "1",
-  "database.hostname": "outbox-cdc-postgres",
+  "database.hostname": "order-postgres",
   "database.port": "5432",
   "database.user": "dbzuser",
   "database.password": "dbzpw",
-  "database.dbname": "pgdb",
+  "database.dbname": "order_db",
   "schema.include.list": "public",
   "table.include.list": "public.outbox",
   "tombstones.on.delete": "false",
-  "topic.prefix": "outbox",
+  "topic.prefix": "order",
   "transforms": "outbox",
   "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
-  "transforms.outbox.route.topic.replacement": "${routedByValue}.events",
-  "transforms.outbox.table.fields.additional.placement": "type:header:event_type"
+  "transforms.outbox.route.topic.replacement": "${routedByValue}",
+  "transforms.outbox.table.fields.additional.placement": "type:envelope:event_type"
 }

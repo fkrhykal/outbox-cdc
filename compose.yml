@@ -1,0 +1,68 @@
+services:
+  inventory-postgres:
+    container_name: inventory_postgres
+    build:
+      context: .
+      dockerfile: Containerfile.pg
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpw
+      POSTGRES_DB: inventory_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - "./infrastructure/postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf:ro,z"
+      - "./infrastructure/postgres/inventory/init-db:/docker-entrypoint-initdb.d:ro,z"
+    command: [ "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+  order-postgres:
+    container_name: order_postgres
+    build:
+      context: .
+      dockerfile: Containerfile.pg
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpw
+      POSTGRES_DB: order_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - "./infrastructure/postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf:ro,z"
+      - "./infrastructure/postgres/order/init-db:/docker-entrypoint-initdb.d:ro,z"
+    command: [ "-c", "config_file=/etc/postgresql/postgresql.conf" ]
+  outbox-cdc-kafka:
+    container_name: outbox_cdc_kafka
+    image: docker.io/apache/kafka:4.1.1
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://outbox-cdc-kafka:9092,EXTERNAL://localhost:29092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@outbox-cdc-kafka:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+  outbox-cdc-kafka-connect-standalone:
+    container_name: outbox_cdc_kafka_connect_standalone
+    image: docker.io/apache/kafka:4.1.1
+    depends_on: [ inventory-postgres, order-postgres, outbox-cdc-kafka ]
+    ports:
+      - "8083:8083"
+    volumes:
+      - "./infrastructure/kafka-connect/config/connect-standalone.properties:/opt/kafka/connect/config/connect-standalone.properties:rw,z"
+      - "./infrastructure/kafka-connect/plugins:/opt/kafka/connect/plugins:rw,z"
+      - "./infrastructure/kafka-connect/debezium/inventory-connector.json:/opt/kafka/connect/debezium/inventory-connector.json:rw,z"
+      - "./infrastructure/kafka-connect/debezium/order-connector.json:/opt/kafka/connect/debezium/order-connector.json:rw,z"
+    command: [ /opt/kafka/bin/connect-standalone.sh, /opt/kafka/connect/config/connect-standalone.properties, /opt/kafka/connect/debezium/inventory-connector.json, /opt/kafka/connect/debezium/order-connector.json ]
+  outbox-cdc-kafka-consumer:
+    container_name: outbox_cdc_kafka_consumer
+    image: docker.io/apache/kafka:4.1.1
+    depends_on: [ outbox-cdc-kafka ]
+    command: [ /opt/kafka/bin/kafka-console-consumer.sh, --bootstrap-server=outbox-cdc-kafka:9092, --from-beginning, --topic=order, --property, print.headers=true ]

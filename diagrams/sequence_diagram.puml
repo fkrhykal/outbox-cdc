@@ -1,19 +1,84 @@
-@startuml sequence_diagram
-title "Order Placement Sequence Diagram"
+@startuml "Outbox CDC Sequence"
+autonumber
+
 actor User
-participant "API" as api
-participant "Order Service" as service
-participant "Database" as db
-participant "Debezium" as debezium
-participant "Kafka" as kafka
-participant "Kafka Consumer" as consumer
-User -> api: POST /orders
-api -> service: PlaceOrder(cmd)
-service -> db: BEGIN
-service -> db: INSERT into orders
-service -> db: INSERT into outbox
-service -> db: COMMIT
-db -> debezium: Change Event (outbox)
-debezium -> kafka: Publish Message
-kafka -> consumer: Consume Message
+participant "Order Service" as API
+database "Order DB" as DB
+participant "Debezium\n(Kafka Connect)" as DBZ
+queue "Kafka\nTopic: order" as Kafka
+participant "Inventory Worker" as Worker
+database "Inventory DB" as InvDB
+
+User -> API : POST /orders\n{ "product_id": "...", "quantity": 2, "estimated_price": 1500 }
+activate API
+
+API -> DB : Start Transaction
+activate DB
+
+API -> DB : Insert Order\n(status: PENDING)
+
+note over API, DB
+  **Outbox Payload (JSONB)**
+  {
+    "event_id": "uuid-1",
+    "order_id": "uuid-order",
+    "item_id": "uuid-product",
+    "quantity": 2,
+    "estimated_price": 1500,
+    "placed_at": "2026-01-31T23:13:00Z"
+  }
+end note
+
+API -> DB : Insert Outbox\n(id: uuid-1, aggregateid: uuid-order, \naggregatetype: "order", type: "order.placed", payload: JSONB)
+
+API -> DB : Commit Transaction
+deactivate DB
+
+API -> User : 201 Created\n{ "order_id": "uuid-order" }
+deactivate API
+
+... Debezium Polling ...
+
+DBZ -> DB : Stream WAL / Poll Outbox
+activate DBZ
+DB -> DBZ : New row in Outbox table
+deactivate DB
+
+note over DBZ, Kafka
+  **Kafka Message Key**: "uuid-order"
+  **Kafka Message Value (Debezium Envelope)**:
+  {
+    "payload": {
+      "payload": "{\"event_id\":\"uuid-1\",...}",
+      "event_type": "order.placed"
+    }
+  }
+end note
+
+DBZ -> Kafka : Publish Message to topic "order"
+activate Kafka
+Kafka -> DBZ : Ack
+deactivate Kafka
+deactivate DBZ
+
+... Async Consumption ...
+
+Worker -> Kafka : Fetch Message
+activate Worker
+activate Kafka
+Kafka -> Worker : Message Data
+deactivate Kafka
+
+Worker -> Worker : Unmarshal Envelope
+Worker -> Worker : Unmarshal Nested Payload
+Worker -> Worker : Match event_type == "order.placed"
+
+Worker -> InvDB : Update Inventory / Process Logic
+activate InvDB
+InvDB -> Worker : Success
+deactivate InvDB
+
+Worker -> Kafka : Commit Offset
+deactivate Worker
+
 @enduml

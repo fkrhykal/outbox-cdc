@@ -9,5 +9,6 @@ import (
 
 type ProductRepository interface {
 	FindByIDLockForUpdate(ctx context.Context, ID uuid.UUID) (*entity.Product, error)
+	FindWithLimit(ctx context.Context, limit int) ([]entity.Product, error)
 	UpdateStock(ctx context.Context, product *entity.Product) error
 }
